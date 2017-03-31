@@ -1,0 +1,292 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html>
+<head>
+	<style type='text/css'>
+	  @import url('../sample/ext/resources/css/ext-all.css');
+	  @import url('../sample/ext/resources/css/xtheme-aero.css');
+	</style>
+	<script type="text/javascript" src="../sample/ext/ext-base.js"></script>
+	<script type="text/javascript" src="../sample/ext/ext-all-debug.js"></script>
+	<script type="text/javascript" src="../sample/localXHR2.js"></script>
+	<script type="text/javascript" src="../sample/dyna-grid-src.js"></script>
+	
+<script type="text/javascript">
+/**
+ * Paging memory proxy, to use for paging from a local memory source
+ * The main purpose for this is testing
+ */
+MyMemoryProxy = Ext.extend(Ext.data.MemoryProxy,
+{
+    constructor : function(config) 
+    {
+        var data = config;
+        MyMemoryProxy.superclass.constructor.call(this,config);
+    },
+    /**
+     * Need to override the load so it loads only what we want
+     */
+    load : function(params, reader, callback, scope, arg) 
+    {
+        params = params || {};
+        arg = arg || {};
+        var result, end, url = this.url;
+        
+        try {
+            if(arg)
+            {
+                if(arg.folderId)
+                {
+                    var run = false;
+                    
+                    if(!this.currentFolderId)
+                    {
+                        this.currentFolderId = arg.folderId;
+                        run = true;
+                    } else if (this.currentFolderId != arg.folderId)
+                    {
+                        run = true;
+                    }
+                    
+                    if(run)
+                    {
+                        //right here i call a service i created which gets the data i need from the server
+                        //for purposes of this example i will just return the data you have in your sample
+                        
+                        this.currentFolderId = arg.folderId;
+                        // keep the data
+                        this.data = updateGridData(arg.folderId);
+                        // run the load again, this time with data all ready
+                        this.load(params,reader,callback,scope,arg);
+                    }
+                    else
+                    {
+                        // we failed, so pass the error message
+                        callback.call(scope,null,arg,false);
+                    }
+                }
+            }
+            
+            //get the data from the model and reader.readRecords(this.data);
+            result = reader.readRecords(this.data);
+            // was it limited?
+            if (params.hasOwnProperty("start")) {
+                
+                var limit = null;
+                if(params.hasOwnProperty("limit"))
+                {
+                    limit = params.start+params.limit;
+                }
+                    
+                result.records = result.records.slice(params.start,limit);//params.hasOwnProperty("limit")?params.start+params.limit:null);
+                
+            }
+        }catch(e){
+            this.fireEvent("loadexception", this, arg, null, e);
+            callback.call(scope, null, arg, false);
+            return;
+        }
+        callback.call(scope, result, arg, true);        
+    }
+});
+
+Ext.onReady(
+    function()
+    {
+        var store = new Ext.data.Store({
+                    proxy: new MyMemoryProxy(),
+                    reader: new Ext.data.JsonReader(),
+                    autoLoad: {params: {start: 0, limit: 50}}
+                });
+        
+        this.grid = new JSORM.ext.DynaGrid({
+                    autoScroll: true,
+                    enableColumnHide: false,
+                    enableColumnMove: false,
+                    enableColumnResize: false,
+                    columns: [{id: 'id', header: 'project Id',sortable: true},{id: 'name', header: 'name',sortable: true},{id: 'owner', header: 'owner',sortable: true}],
+                    sm: new Ext.grid.RowSelectionModel({singleSelect:true}),
+                    store: store
+                });    
+        
+        mainWindow = new Ext.Viewport(
+        {
+            layout: 'border'
+            ,hideMode:'visibility' 
+            ,items: [
+                     {
+                    xtype: 'panel'
+                    ,border: true
+                    ,region: 'west'
+					,width: 200
+                    ,id: 'west'
+                    ,items: 
+                    [ //button
+                        new Ext.Button({
+                            text: "load grid",
+                            handler: fn = function()
+                            {
+								//reset the dynagrid to default values
+								this.grid.getView().scrollToTop();
+							    var options = {
+							        'folderId' : 2
+							        ,params: {start: 0, limit: 50}
+							    };
+							    this.grid.getStore().load(options);
+                            },
+                            scope: this
+                        })
+                    ]
+                },
+                {
+                    xtype: 'panel'
+                    ,border: true
+                    ,region: 'center'
+                    ,id: 'gridCenter'
+                    ,layout: 'fit'
+                    ,items: 
+                    [ this.grid ]
+                }]
+        });
+    }
+);
+
+function updateGridData( projectId )
+    {    
+        var stubdata = {
+            metaData: {
+                totalProperty: 'results',
+                root: 'subjects',
+                fields: 
+            [{name: 'projectId'},{name:'name'},{name:'owner'}]
+            },
+            results: 118,
+            subjects: 
+                [ 
+                    {projectId: 0, name: 'John Smith', owner: 'jsmith'},
+                    {projectId: 1, name: 'Jill Shine', owner: 'jshine'},
+                    {projectId: 2, name: 'Jim Smooth', owner: 'jsmooth'},
+                    {projectId: 3, name: 'Julia Share', owner: 'jshare'},
+                    {projectId: 4, name: 'Jack Stack', owner: 'jstack'},
+                    {projectId: 5, name: 'Jerry Stein', owner: 'jstein'},
+                    {projectId: 6, name: 'Jonathan Sergio', owner: 'jsergio'},
+                    {projectId: 7, name: 'Julie Smart', owner: 'jsmart'},
+                    {projectId: 8, name: 'Jarvis Stiles', owner: 'jstiles'},
+                    {projectId: 9, name: 'Jennifer Schwartz', owner: 'jschwartz'},
+                    {projectId: 10, name: 'Jimmy Samuels', owner: 'jsamuels'},
+                    {projectId: 11, name: 'Jeremy Skilling', owner: 'jskilling'},
+                    {projectId: 12, name: 'Jared Sunder', owner: 'jsunder'},
+                    {projectId: 13, name: 'Jillian SlprojectIde', owner: 'jslprojectIde'},
+                    {projectId: 14, name: 'Jonny Sykes', owner: 'jsykes'},
+                    {projectId: 15, name: 'Jasper Stouffer', owner: 'jstouffer'},
+                    {projectId: 16, name: 'Janice Stern', owner: 'jstern'},
+                    {projectId: 17, name: 'Jax Sullenberger', owner: 'jsullenberger'},
+                    {projectId: 18, name: 'Jeffrey Solace', owner: 'jsolace'},
+                    {projectId: 19, name: 'Jeff Striker', owner: 'jstriker'},
+                    {projectId: 20, name: 'Jet Sunday', owner: 'jsunday'},
+                    {projectId: 21, name: 'Jinger Sacks', owner: 'jsacks'},
+                    {projectId: 22, name: 'Janine Staff', owner: 'jstaff'},
+                    {projectId: 23, name: 'Jazz Shane', owner: 'jshane'},
+                    {projectId: 24, name: 'Jackson Sopher', owner: 'jsopher'},
+                    {projectId: 25, name: 'Job Suffers', owner: 'jsuffers'},
+                    {projectId: 26, name: 'Javier Solana', owner: 'jsolana'},
+                    {projectId: 27, name: 'Jed Scrips', owner: 'jscrips'},
+                    {projectId: 28, name: 'June Summers', owner: 'jsummers'},
+                    {projectId: 29, name: 'July Smithers', owner: 'jsmithers'},
+                    {projectId: 30, name: 'John Smith', owner: 'jsmith'},
+                    {projectId: 31, name: 'Jill Shine', owner: 'jshine'},
+                    {projectId: 32, name: 'Jim Smooth', owner: 'jsmooth'},
+                    {projectId: 33, name: 'Julia Share', owner: 'jshare'},
+                    {projectId: 34, name: 'Jack Stack', owner: 'jstack'},
+                    {projectId: 35, name: 'Jerry Stein', owner: 'jstein'},
+                    {projectId: 36, name: 'Jonathan Sergio', owner: 'jsergio'},
+                    {projectId: 37, name: 'Julie Smart', owner: 'jsmart'},
+                    {projectId: 38, name: 'Jarvis Stiles', owner: 'jstiles'},
+                    {projectId: 39, name: 'Jennifer Schwartz', owner: 'jschwartz'},
+                    {projectId: 40, name: 'Jimmy Samuels', owner: 'jsamuels'},
+                    {projectId: 41, name: 'Jeremy Skilling', owner: 'jskilling'},
+                    {projectId: 42, name: 'Jared Sunder', owner: 'jsunder'},
+                    {projectId: 43, name: 'Jillian SlprojectIde', owner: 'jslprojectIde'},
+                    {projectId: 44, name: 'Jonny Sykes', owner: 'jsykes'},
+                    {projectId: 45, name: 'Jasper Stouffer', owner: 'jstouffer'},
+                    {projectId: 46, name: 'Janice Stern', owner: 'jstern'},
+                    {projectId: 47, name: 'Jax Sullenberger', owner: 'jsullenberger'},
+                    {projectId: 48, name: 'Jeffrey Solace', owner: 'jsolace'},
+                    {projectId: 49, name: 'Jeff Striker', owner: 'jstriker'},
+                    {projectId: 50, name: 'Jet Sunday', owner: 'jsunday'},
+                    {projectId: 51, name: 'Jinger Sacks', owner: 'jsacks'},
+                    {projectId: 52, name: 'Janine Staff', owner: 'jstaff'},
+                    {projectId: 53, name: 'Jazz Shane', owner: 'jshane'},
+                    {projectId: 54, name: 'Jackson Sopher', owner: 'jsopher'},
+                    {projectId: 55, name: 'Job Suffers', owner: 'jsuffers'},
+                    {projectId: 56, name: 'Javier Solana', owner: 'jsolana'},
+                    {projectId: 57, name: 'Jed Scrips', owner: 'jscrips'},
+                    {projectId: 58, name: 'June Summers', owner: 'jsummers'},
+                    {projectId: 59, name: 'John Smith', owner: 'jsmith'},
+                    {projectId: 60, name: 'Jill Shine', owner: 'jshine'},
+                    {projectId: 61, name: 'Jim Smooth', owner: 'jsmooth'},
+                    {projectId: 62, name: 'Julia Share', owner: 'jshare'},
+                    {projectId: 63, name: 'Jack Stack', owner: 'jstack'},
+                    {projectId: 64, name: 'Jerry Stein', owner: 'jstein'},
+                    {projectId: 65, name: 'Jonathan Sergio', owner: 'jsergio'},
+                    {projectId: 66, name: 'Julie Smart', owner: 'jsmart'},
+                    {projectId: 67, name: 'Jarvis Stiles', owner: 'jstiles'},
+                    {projectId: 68, name: 'Jennifer Schwartz', owner: 'jschwartz'},
+                    {projectId: 69, name: 'Jimmy Samuels', owner: 'jsamuels'},
+                    {projectId: 70, name: 'Jeremy Skilling', owner: 'jskilling'},
+                    {projectId: 71, name: 'Jared Sunder', owner: 'jsunder'},
+                    {projectId: 72, name: 'Jillian SlprojectIde', owner: 'jslprojectIde'},
+                    {projectId: 73, name: 'Jonny Sykes', owner: 'jsykes'},
+                    {projectId: 74, name: 'Jasper Stouffer', owner: 'jstouffer'},
+                    {projectId: 75, name: 'Janice Stern', owner: 'jstern'},
+                    {projectId: 76, name: 'Jax Sullenberger', owner: 'jsullenberger'},
+                    {projectId: 77, name: 'Jeffrey Solace', owner: 'jsolace'},
+                    {projectId: 78, name: 'Jeff Striker', owner: 'jstriker'},
+                    {projectId: 79, name: 'Jet Sunday', owner: 'jsunday'},
+                    {projectId: 80, name: 'Jinger Sacks', owner: 'jsacks'},
+                    {projectId: 81, name: 'Janine Staff', owner: 'jstaff'},
+                    {projectId: 82, name: 'Jazz Shane', owner: 'jshane'},
+                    {projectId: 83, name: 'Jackson Sopher', owner: 'jsopher'},
+                    {projectId: 84, name: 'Job Suffers', owner: 'jsuffers'},
+                    {projectId: 85, name: 'Javier Solana', owner: 'jsolana'},
+                    {projectId: 86, name: 'Jed Scrips', owner: 'jscrips'},
+                    {projectId: 87, name: 'June Summers', owner: 'jsummers'},
+                    {projectId: 88, name: 'July Smithers', owner: 'jsmithers'},
+                    {projectId: 89, name: 'John Smith', owner: 'jsmith'},
+                    {projectId: 90, name: 'Jill Shine', owner: 'jshine'},
+                    {projectId: 91, name: 'Jim Smooth', owner: 'jsmooth'},
+                    {projectId: 92, name: 'Julia Share', owner: 'jshare'},
+                    {projectId: 93, name: 'Jack Stack', owner: 'jstack'},
+                    {projectId: 94, name: 'Jerry Stein', owner: 'jstein'},
+                    {projectId: 95, name: 'Jonathan Sergio', owner: 'jsergio'},
+                    {projectId: 96, name: 'Julie Smart', owner: 'jsmart'},
+                    {projectId: 97, name: 'Jarvis Stiles', owner: 'jstiles'},
+                    {projectId: 98, name: 'Jennifer Schwartz', owner: 'jschwartz'},
+                    {projectId: 99, name: 'Jimmy Samuels', owner: 'jsamuels'},
+                    {projectId: 100, name: 'Jeremy Skilling', owner: 'jskilling'},
+                    {projectId: 101, name: 'Jared Sunder', owner: 'jsunder'},
+                    {projectId: 102, name: 'Jillian SlprojectIde', owner: 'jslprojectIde'},
+                    {projectId: 103, name: 'Jonny Sykes', owner: 'jsykes'},
+                    {projectId: 104, name: 'Jasper Stouffer', owner: 'jstouffer'},
+                    {projectId: 105, name: 'Janice Stern', owner: 'jstern'},
+                    {projectId: 106, name: 'Jax Sullenberger', owner: 'jsullenberger'},
+                    {projectId: 107, name: 'Jeffrey Solace', owner: 'jsolace'},
+                    {projectId: 108, name: 'Jeff Striker', owner: 'jstriker'},
+                    {projectId: 109, name: 'Jet Sunday', owner: 'jsunday'},
+                    {projectId: 110, name: 'Jinger Sacks', owner: 'jsacks'},
+                    {projectId: 111, name: 'Janine Staff', owner: 'jstaff'},
+                    {projectId: 112, name: 'Jazz Shane', owner: 'jshane'},
+                    {projectId: 113, name: 'Jackson Sopher', owner: 'jsopher'},
+                    {projectId: 114, name: 'Job Suffers', owner: 'jsuffers'},
+                    {projectId: 115, name: 'Javier Solana', owner: 'jsolana'},
+                    {projectId: 116, name: 'Jed Scrips', owner: 'jscrips'},
+                    {projectId: 117, name: 'June Summers', owner: 'jsummers'}
+                ]
+            };
+    
+    return(stubdata);
+}
+</script>
+</head>
+<body>
+</body>
+</html>

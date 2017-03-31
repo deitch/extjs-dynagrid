@@ -1,0 +1,28 @@
+/*
+ * Copyright © Atomic Inc 2009
+ * http://jsorm.com
+ *
+ * This file contains work that is copyrighted and is distributed under one of several licenses. 
+ * You may not use, modify or distribute this work, except under an approved license. 
+ * Please visit the Web site listed above to obtain the original work and a license.
+ * 
+ * Version: 0.9
+ */
+
+
+Ext.ns("JSORM","JSORM.ext","Ext.ux","Ext.ux.grid");JSORM.ext.DynaGrid=function(parent,config){if(typeof(parent)!=="function"){config=parent;parent=Ext.grid.GridPanel;}
+var superclass=parent;config=config||{};var w=Ext.extend(parent,{getView:function(){if(!this.view){this.view=new Ext.grid.GridView(this.viewConfig);}
+if(!this.view._DynaGridView){this.view=new JSORM.ext.DynaGridView(this.view);this.view.setMarginFactor(config.marginFactor);}
+return this.view;}});superclass=w.superclass;return(new w(config));};Ext.ux.grid.DynaGrid=JSORM.ext.DynaGrid;JSORM.ext.DynaGridView=function(parent,config){var superclass=parent.constructor.prototype,that=parent,store;var rowHeight=-1,visibleRows=0,margin=0,marginFactor=0.5,limit=0,maxScrollTop=-1,sb=null,firstRow=-1;var minChange,oldStart=-1,oldFinish=-1,tmpStart=-1,tmpFinish=-1;var scrollHandler,calcFirstRow,calcDimensions,setPadding,reorderStore,load;calcDimensions=function(){var r1=this.getRow(0);if(r1&&r1.offsetHeight>0){sb=this.scroller.dom;store=this.grid.getStore();rowHeight=r1.offsetHeight;this.mainBody.setHeight(rowHeight*store.getTotalCount());maxScrollTop=sb.scrollHeight-sb.offsetHeight;visibleRows=Math.ceil(sb.offsetHeight/rowHeight);margin=Math.floor(visibleRows*marginFactor);minChange=0.5*margin;limit=visibleRows+2*margin;}};setPadding=function(force){var r=this.getRow(0),pad;if(rowHeight<=0||force){calcDimensions.call(this);}
+if(rowHeight>0&&firstRow>=0&&r){Ext.get(r).setStyle("padding-top",firstRow*rowHeight+'px');}};calcFirstRow=function(){var top,pct,totalCount,middleRow;if(rowHeight<=0){calcDimensions.call(this);}
+totalCount=store.getTotalCount();top=sb.scrollTop;pct=top/maxScrollTop;middleRow=Math.floor(pct*(totalCount-visibleRows)+0.5*visibleRows);firstRow=Math.max(Math.floor(middleRow-limit/2),0);firstRow=Math.min(totalCount-limit,firstRow);};load=function(){var newStart,newLimit,i,len,optadd=true,start=firstRow,finish=start+limit,optadd=true,options={},rec;if(oldStart===-1){oldStart=start!==null&&start>-1?start:0;optadd=false;}else if(oldFinish===-1){oldFinish=store.getCount();}
+if(start<oldStart||start>=oldFinish){newStart=start;}else{newStart=oldFinish;}
+if(finish>oldFinish||finish<=oldStart){newLimit=finish-newStart;}else{newLimit=oldStart-start;}
+if((newLimit<minChange&&newStart+newLimit<store.getTotalCount()&&newStart!==0)||newLimit<1){return(true);}else{if(oldStart>-1){for(i=oldStart;i<start;i++){rec=store.getAt(0);store.remove(rec);}}
+for(i=finish;i<oldFinish;i++){rec=store.getAt(store.getCount()-1);store.remove(rec);}
+tmpStart=start;tmpFinish=start+limit;options.params={};options.params[store.paramNames.start]=newStart;options.params[store.paramNames.limit]=newLimit;options.add=optadd;store.load(options);}};scrollHandler=function(){calcFirstRow.call(this);load.call(this);};reorderStore=function(store,records,options){var i,len,rec,incr;if(oldStart===-1&&options&&options.params&&options.params.start!==undefined){oldStart=options.params.start;tmpStart=oldStart;}
+if(tmpStart!==-1&&tmpStart<oldStart){incr=store.getCount()-records.length;for(i=0,len=records.length;i<len;i++){rec=store.data.removeAt(i+incr);store.data.insert(i,rec);}}else{}
+oldStart=tmpStart;oldFinish=tmpFinish;store.fireEvent('datachanged',store);return(true);};Ext.apply(this,{_DynaGridView:true,init:function(grid){superclass.init.call(this,grid);this.grid.on('bodyscroll',scrollHandler,this);this.grid.on('afterlayout',setPadding.createDelegate(this,[true]));this.grid.on('resize',setPadding.createDelegate(this,[true]));this.grid.on('bodyresize',setPadding.createDelegate(this,[true]));},initData:function(ds,cm){parent.constructor.prototype.initData.apply(parent,arguments);if(ds&&ds.lastOptions&&ds.lastOptions.params&&ds.lastOptions.params.start!==undefined){oldStart=ds.lastOptions.params.start;tmpStart=oldStart;}},onLoad:function(store,records,options){reorderStore(store,records,options);setPadding.call(this);},afterRender:function(){var ret=parent.constructor.prototype.afterRender.apply(parent,arguments);setPadding.call(this);return(ret);},setMarginFactor:function(factor){if(typeof(factor)==="number"&&factor>-1){marginFactor=factor;}}});Ext.apply(parent,this);return(parent);};JSORM.ext.PagingMemoryProxy=Ext.extend(Ext.data.MemoryProxy,{constructor:function(config){var data=config;if(typeof(config)==="object"&&config.url){this.url=config.url;}
+JSORM.ext.PagingMemoryProxy.superclass.constructor.call(this,config);},load:function(params,reader,callback,scope,arg){params=params||{};arg=arg||{};var result,end,url=this.url;try{if(url&&!this.urlLoaded){this.urlLoaded=true;Ext.Ajax.request({url:url,scope:this,callback:function(options,success,response){if(success){this.urlLoaded=true;this.data=Ext.decode(response.responseText);this.load(params,reader,callback,scope,arg);}else{callback.call(scope,null,arg,false);}}});}
+result=reader.readRecords(this.data);if(params.hasOwnProperty("start")){result.records=result.records.slice(params.start,params.hasOwnProperty("limit")?params.start+params.limit:null);}}catch(e){this.fireEvent("loadexception",this,arg,null,e);callback.call(scope,null,arg,false);return;}
+callback.call(scope,result,arg,true);}});
